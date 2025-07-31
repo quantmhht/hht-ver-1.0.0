@@ -1,0 +1,17 @@
+{
+  "app": {
+    "title": "UBND Phường Hà Huy Tập",
+    "headerColor": "#046DD6",
+    "textColor": "white",
+    "statusBarColor": "#046DD6",
+    "leftButton": "back",
+    "actionBarHidden": true,
+    "hideIOSSafeAreaBottom": true,
+    "statusBar": "transparent"
+  },
+  "debug": false,
+  "pages": [],
+    "template": {
+        "name": "zaui-egovernment"
+    }
+}
