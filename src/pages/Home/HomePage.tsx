@@ -10,9 +10,11 @@
         state.organization,
         state.getNews,
       ]);
-      useEffect(() => {
-    getNews();
-  }, []);
+  useEffect(() => {
+    if (organization?.id) {
+      getNews({ organizationId: organization.id });
+    }
+  }, [organization, getNews]);
 
       return (
         <PageLayout

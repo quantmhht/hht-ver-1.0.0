@@ -145,4 +145,72 @@ export interface News {
       thumbnail: string;
       content: string;
       images: string[];
+    };
+export interface News {
+      id: number;
+      title: string;
+      thumbnail: string;
+      content: string;
+      images: string[];
     }
+
+// Report types
+export interface Report {
+  id: string;
+  title: string;
+  description: string;
+  assignedTo: string;
+  assignedBy: string;
+  dueDate: Date;
+  createdAt: Date;
+  completedAt?: Date;
+  status: ReportStatus;
+  priority: ReportPriority;
+  category: string;
+  content?: string;
+  attachments?: string[];
+  organizationId: string;
+  tdpName: string;
+  feedback?: string;
+}
+
+export type ReportStatus = 
+  | "pending"
+  | "in_progress"
+  | "submitted"
+  | "approved"
+  | "rejected"
+  | "overdue";
+
+export type ReportPriority = "low" | "medium" | "high" | "urgent";
+
+export interface ReportStats {
+  totalReports: number;
+  completedReports: number;
+  pendingReports: number;
+  overdueReports: number;
+  completionRate: number;
+  averageCompletionTime: number;
+  monthlyStats: MonthlyReportStats[];
+}
+
+export interface MonthlyReportStats {
+  month: string;
+  totalReports: number;
+  completedReports: number;
+  completionRate: number;
+  averageCompletionTime: number;
+}
+
+export interface TDPInfo {
+  id: string;
+  name: string;
+  leaderZaloId: string;
+  leaderName: string;
+  leaderPhone: string;
+  address: string;
+  households: number;
+  population: number;
+  organizationId: string;
+  isActive: boolean;
+}
