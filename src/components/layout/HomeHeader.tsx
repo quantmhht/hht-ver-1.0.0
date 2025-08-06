@@ -13,7 +13,7 @@ const LogoWrapper = styled.div`
   ${tw`w-12 h-12 rounded-full overflow-hidden flex-shrink-0`}
 `;
 const Title = styled(Text.Title)`
-  ${tw`text-black`}
+  ${tw`text-white`}
 `;
 const StyledText = styled(Text)`
   ${tw`text-white opacity-80`}

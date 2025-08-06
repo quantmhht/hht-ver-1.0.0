@@ -1,4 +1,3 @@
-// src/service/services.ts
 import {
   collection,
   getDocs,
@@ -8,198 +7,92 @@ import {
   query,
   where,
   limit,
-  orderBy,
-  startAfter,
-  QueryDocumentSnapshot,
-  DocumentData,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { db } from "./firebase"; // Import database từ file firebase.ts
 import { News, Feedback, Organization, FeedbackType } from "@dts";
 
-// ===== INTERFACES CHO PARAMS =====
 
-export interface GetOrganizationParams {
-  miniAppId: string;
-}
+// Hàm này có thể giữ lại hoặc xóa nếu không dùng đến
+export const getOrganization = async (id: string) => {
+  const docRef = doc(db, "organization", id);
+  const docSnap = await getDoc(docRef);
 
-export interface GetNewsParams {
-  organizationId?: string;
-  page?: number;
-  limit?: number;
-}
-
-export interface CreateFeedbackParams {
-  title: string;
-  content: string;
-  fullName: string;
-  address: string;
-  phoneNumber: string;
-  nationalId: string;
-  type: string; // Tên loại phản ánh
-  imageUrls: string[];
-  organizationId: string;
-  response?: string;
-  creationTime: Date;
-  responseTime?: Date | null;
-}
-
-export interface GetFeedbacksParams {
-  organizationId: string;
-  page?: number;
-  limit?: number;
-  firstFetch?: boolean;
-}
-
-export interface GetFeedbackTypeParams {
-  organizationId: string;
-}
-
-// ===== ORGANIZATION SERVICES =====
-
-export const getOrganization = async (params: GetOrganizationParams): Promise<Organization | null> => {
-  try {
-    // Tạm thời trả về dữ liệu mặc định, sau này có thể lấy từ Firestore theo miniAppId
-    const defaultOrg: Organization = {
-      id: "ha-huy-tap-ward",
-      name: "UBND Phường Hà Huy Tập",
-      description: "Ủy ban nhân dân phường Hà Huy Tập, thành phố Hà Tĩnh, tỉnh Hà Tĩnh",
-      logoUrl: "/assets/logo.png",
-      officialAccounts: [
-        {
-          oaId: "oa-ha-huy-tap",
-          name: "UBND Phường Hà Huy Tập",
-          logoUrl: "/assets/logo.png",
-          follow: false,
-        }
-      ]
-    };
-    return defaultOrg;
-  } catch (error) {
-    console.error("Error getting organization:", error);
+  if (docSnap.exists()) {
+    return { id: docSnap.id, ...docSnap.data() } as Organization;
+  } else {
+    // Trả về null hoặc throw error nếu không tìm thấy
+    console.log("No such document!");
     return null;
   }
 };
 
-// ===== NEWS SERVICES =====
-
-export const getNews = async (params: GetNewsParams = {}): Promise<News[]> => {
-  try {
-    const { limit: limitCount = 20, page = 0 } = params;
-    
-    let newsQuery = query(
-      collection(db, "news"),
-      orderBy("createdAt", "desc"),
-      limit(limitCount)
-    );
-
-    // Nếu có phân trang
-    if (page > 0) {
-      // Lấy document cuối cùng của trang trước để phân trang
-      // Cần implement logic phân trang phức tạp hơn nếu cần
-    }
-
-    const newsSnapshot = await getDocs(newsQuery);
-    const newsList = newsSnapshot.docs.map((doc) => ({
-      id: parseInt(doc.id) || 0,
-      ...doc.data(),
-    })) as News[];
-
-    return newsList;
-  } catch (error) {
-    console.error("Error getting news:", error);
-    return [];
-  }
+/**
+ * Lấy danh sách tin tức từ collection "news" trên Firestore.
+ * Đã cập nhật để nhận tham số cho tương thích với newsSlice.ts
+ */
+export const getNews = async (params?: { organizationId: string; page?: number; limit?: number }) => {
+  // Mặc dù hiện tại chúng ta chưa dùng đến params, việc khai báo nó sẽ giải quyết lỗi TypeScript.
+  // Sau này bạn có thể dùng params.organizationId để lọc tin tức nếu cần.
+  const newsCol = collection(db, "news");
+  const newsSnapshot = await getDocs(newsCol);
+  const newsList = newsSnapshot.docs.map(
+    (doc) => ({ id: doc.id, ...doc.data() } as unknown as News)
+  );
+  // Sắp xếp tin tức theo ID (hoặc một trường timestamp nếu có) để tin mới nhất lên đầu
+  return newsList.sort((a, b) => b.id - a.id);
 };
 
-// ===== FEEDBACK SERVICES =====
-
-export const createFeedback = async (feedbackData: CreateFeedbackParams): Promise<boolean> => {
+/**
+ * Gửi một phản ánh mới lên collection "feedbacks" trên Firestore.
+ */
+export const createFeedback = async (feedbackData: Omit<Feedback, "id">) => {
   try {
     const feedbackCol = collection(db, "feedbacks");
     await addDoc(feedbackCol, {
       ...feedbackData,
-      createdAt: new Date(),
-      status: "Mới",
+      createdAt: new Date(), // Thêm thời gian tạo để tiện sắp xếp
+      status: "Mới", // Trạng thái mặc định
     });
-    return true;
+    return true; // Trả về true nếu thành công
   } catch (error) {
-    console.error("Error creating feedback:", error);
-    return false;
+    console.error("Error creating feedback: ", error);
+    return false; // Trả về false nếu có lỗi
   }
 };
 
-export const getFeedbacks = async (params: GetFeedbacksParams): Promise<Feedback[]> => {
-  try {
-    const { organizationId, limit: limitCount = 10, page = 0 } = params;
-    
-    let feedbackQuery = query(
-      collection(db, "feedbacks"),
-      where("organizationId", "==", organizationId),
-      orderBy("createdAt", "desc"),
-      limit(limitCount)
-    );
+// Các hàm khác có thể được thêm vào đây theo cách tương tự
+// Ví dụ: lấy danh sách phản ánh, chi tiết phản ánh...
 
-    const feedbackSnapshot = await getDocs(feedbackQuery);
-    const feedbackList = feedbackSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      // Chuyển đổi timestamp thành Date nếu cần
-      creationTime: doc.data().creationTime?.toDate?.() || doc.data().creationTime,
-      responseTime: doc.data().responseTime?.toDate?.() || doc.data().responseTime,
-    })) as Feedback[];
-
-    return feedbackList;
-  } catch (error) {
-    console.error("Error getting feedbacks:", error);
-    return [];
-  }
+export const getFeedbacks = async (organizationId: string) => {
+  // Hiện tại, chúng ta sẽ lấy tất cả feedbacks, sau này có thể lọc theo organizationId nếu cần
+  const feedbackCol = collection(db, "feedbacks");
+  const feedbackSnapshot = await getDocs(feedbackCol);
+  const feedbackList = feedbackSnapshot.docs.map(
+    (doc) => ({ id: doc.id, ...doc.data() } as unknown as Feedback)
+  );
+  return feedbackList;
 };
 
-export const getFeedbackDetail = async (id: string): Promise<Feedback | null> => {
-  try {
-    const docRef = doc(db, "feedbacks", id);
-    const docSnap = await getDoc(docRef);
+export const getFeedbackDetail = async (id: string) => {
+  const docRef = doc(db, "feedbacks", id);
+  const docSnap = await getDoc(docRef);
 
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      return {
-        id: docSnap.id,
-        ...data,
-        creationTime: data.creationTime?.toDate?.() || data.creationTime,
-        responseTime: data.responseTime?.toDate?.() || data.responseTime,
-      } as Feedback;
-    }
-    return null;
-  } catch (error) {
-    console.error("Error getting feedback detail:", error);
+  if (docSnap.exists()) {
+    return { id: docSnap.id, ...docSnap.data() } as Feedback;
+  } else {
     return null;
   }
 };
 
-export const getFeedbackTypes = async (params: GetFeedbackTypeParams): Promise<FeedbackType[]> => {
-  // Tạm thời trả về dữ liệu tĩnh, sau này có thể lưu vào Firestore
-  try {
-    const types: FeedbackType[] = [
-      { id: 1, title: "Tin báo về ANTT", order: 1 },
-      { id: 2, title: "Tin báo về văn hóa xã hội", order: 2 },
-      { id: 3, title: "Tin báo về địa chính, xây dựng, kinh doanh, đô thị", order: 3 },
-      { id: 4, title: "Tin báo khác", order: 4 },
-    ];
-    return types;
-  } catch (error) {
-    console.error("Error getting feedback types:", error);
-    return [];
-  }
-};
-
-// ===== HELPER FUNCTIONS =====
-
-export const getFeedbackTypeName = (id: number): string => {
-  const types: { [key: number]: string } = {
-    1: "Tin báo về ANTT",
-    2: "Tin báo về văn hóa xã hội",
-    3: "Tin báo về địa chính, xây dựng, kinh doanh, đô thị",
-    4: "Tin báo khác"
-  };
-  return types[id] || "Tin báo khác";
+// Hàm này có thể giữ lại hoặc chuyển sang lấy từ Firebase nếu cần
+export const getFeedbackTypes = async (organizationId: string) => {
+  // Trong thực tế, bạn có thể tạo một collection 'feedbackTypes' trên Firebase
+  // Ở đây, chúng ta tạm thời trả về dữ liệu tĩnh như đã làm ở các bước trước
+  const types: FeedbackType[] = [
+    { id: 1, title: "Tin báo về ANTT" , order: 1},
+    { id: 2, title: "Tin báo về văn hóa xã hội", order: 2 },
+    { id: 3, title: "Tin báo về địa chính, xây dựng, kinh doanh, đô thị", order: 3 },
+    { id: 4, title: "Tin báo khác", order: 4 },
+  ];
+  return types;
 };

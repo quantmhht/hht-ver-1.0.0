@@ -1,28 +1,13 @@
-// src/store/feedbackSlice.ts
 import { Feedback, Feedbacks, FeedbackType } from "@dts";
 import {
     createFeedback,
-    getFeedbacks,
-    getFeedbackDetail,
-    getFeedbackTypes,
-    getFeedbackTypeName,
     CreateFeedbackParams,
+    getFeedbacks,
     GetFeedbacksParams,
     GetFeedbackTypeParams,
-} from "@service/services";
+    getFeedbackTypes,
+} from "@service/services.mock";
 import { StateCreator } from "zustand";
-
-// Interface cho form input
-export interface CreateFeedbackFormParams {
-    title: string;
-    content: string;
-    fullName: string;
-    address: string;
-    phoneNumber: string;
-    nationalId: string;
-    feedBackTypeId: number; // ID số
-    imageUrls: string[];
-}
 
 export interface FeedbackSlice {
     creatingFeedback?: boolean;
@@ -31,24 +16,23 @@ export interface FeedbackSlice {
     feedbacks?: Feedbacks;
     feedbackResult?: boolean;
     feedbackTypes?: FeedbackType[];
-    feedbackDetail?: Feedback | null;
+    feedbackDetail?: Feedback;
     createFeedback: (
-        feedback: CreateFeedbackFormParams,
+        feedback: CreateFeedbackParams,
         organizationId: string,
     ) => Promise<boolean>;
     getFeedbacks: (params: GetFeedbacksParams) => Promise<void>;
     getFeedbackTypes: (params: GetFeedbackTypeParams) => Promise<void>;
-    getFeedback: (params: { id: string }) => Promise<void>;
+    getFeedback: (params: { id: number }) => void;
 }
 
 const feedbackSlice: StateCreator<FeedbackSlice> = (set, get) => ({
     creatingFeedback: false,
     gettingFeedback: false,
     gettingFeedbackType: false,
-    feedbackDetail: null,
 
     createFeedback: async (
-        feedback: CreateFeedbackFormParams,
+        feedback: CreateFeedbackParams,
         organizationId: string,
     ) => {
         try {
@@ -56,33 +40,13 @@ const feedbackSlice: StateCreator<FeedbackSlice> = (set, get) => ({
                 ...state,
                 creatingFeedback: true,
             }));
-
-            // Chuyển đổi dữ liệu form thành params cho Firebase
-            const feedbackData: CreateFeedbackParams = {
-                title: feedback.title,
-                content: feedback.content,
-                fullName: feedback.fullName,
-                address: feedback.address,
-                phoneNumber: feedback.phoneNumber,
-                nationalId: feedback.nationalId,
-                type: getFeedbackTypeName(feedback.feedBackTypeId), // Chuyển ID thành tên
-                imageUrls: feedback.imageUrls,
-                organizationId,
-                response: "",
-                creationTime: new Date(),
-                responseTime: null,
-            };
-
-            const rs = await createFeedback(feedbackData);
+            const rs = await createFeedback(feedback, organizationId);
 
             set(state => ({
                 ...state,
                 feedbackResult: rs,
             }));
             return rs;
-        } catch (error) {
-            console.error("Error creating feedback:", error);
-            return false;
         } finally {
             set(state => ({
                 ...state,
@@ -90,7 +54,6 @@ const feedbackSlice: StateCreator<FeedbackSlice> = (set, get) => ({
             }));
         }
     },
-
     getFeedbacks: async (params: GetFeedbacksParams) => {
         try {
             const { firstFetch = false } = params;
@@ -99,16 +62,7 @@ const feedbackSlice: StateCreator<FeedbackSlice> = (set, get) => ({
                 ...state,
                 gettingFeedback: true,
             }));
-
-            const feedbackList = await getFeedbacks(params);
-            
-            // Chuyển đổi array thành format Feedbacks
-            const feedbacks: Feedbacks = {
-                feedbacks: feedbackList,
-                total: feedbackList.length,
-                page: params.page || 0,
-                currentPageSize: feedbackList.length,
-            };
+            const feedbacks = await getFeedbacks(params);
 
             set(state => ({
                 ...state,
@@ -121,17 +75,17 @@ const feedbackSlice: StateCreator<FeedbackSlice> = (set, get) => ({
                               ...(state.feedbacks?.feedbacks || []),
                               ...feedbacks.feedbacks,
                           ],
+                    currentPageSize: feedbacks.currentPageSize,
+                    page: feedbacks.page,
                 },
             }));
         } catch (err) {
-            console.error("Error getting feedbacks:", err);
             set(state => ({
                 ...state,
                 gettingFeedback: false,
             }));
         }
     },
-
     getFeedbackTypes: async (params: GetFeedbackTypeParams) => {
         try {
             set(state => ({
@@ -141,25 +95,24 @@ const feedbackSlice: StateCreator<FeedbackSlice> = (set, get) => ({
             const feedbackTypes = await getFeedbackTypes(params);
             set(state => ({
                 ...state,
+
                 gettingFeedbackType: false,
                 feedbackTypes,
             }));
         } catch (err) {
-            console.error("Error getting feedback types:", err);
             set(state => ({
                 ...state,
                 gettingFeedbackType: false,
             }));
         }
     },
+    getFeedback: (params: { id: number }) => {
+        const { id } = params;
 
-    getFeedback: async (params: { id: string }) => {
-        try {
-            const feedback = await getFeedbackDetail(params.id);
-            set(state => ({ ...state, feedbackDetail: feedback }));
-        } catch (err) {
-            console.error("Error getting feedback detail:", err);
-        }
+        const feedback = get().feedbacks?.feedbacks.find(
+            item => item.id === id,
+        );
+        set(state => ({ ...state, feedbackDetail: feedback }));
     },
 });
 
